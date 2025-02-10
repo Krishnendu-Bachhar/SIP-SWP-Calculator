@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIP & SWP Calculator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #74ebd5 0%, #9face6 100%);
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      background: #fff;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      width: 90%;
+      max-width: 800px;
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 20px;
+      color: #4a4e69;
+    }
+    .switch button {
+      background: #4a4e69;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      margin: 5px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    .switch button:hover {
+      background: #22223b;
+    }
+    .calculator {
+      display: none;
+      margin-top: 20px;
+    }
+    .visible {
+      display: block;
+    }
+    label {
+      display: block;
+      margin: 10px 0;
+      font-weight: bold;
+    }
+    input[type="number"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      background: #4a4e69;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      margin-top: 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background: #22223b;
+    }
+    .chart-wrapper {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .chart-container {
+      width: 48%;
+    }
+    #sipResult, #swpResult, #lumpsumResult {
+      margin-top: 15px;
+      padding: 10px;
+      background: #f2e9e4;
+      border-radius: 5px;
+      color: #22223b;
+      font-weight: bold;
+    }
+  </style>
+<script defer data-domain="sip-swp-calculator.tiiny.site" src="https://analytics.tiiny.site/js/plausible.js"></script><script type="text/javascript" src="https://tiiny.host/ad-script.js"></script></head>
+<body>
+  <div class="container">
+    <h1>SIP, SWP & Lumpsum Calculator</h1>
+    <div class="switch">
+      <button onclick="showCalculator('sip')">SIP Calculator</button>
+      <button onclick="showCalculator('swp')">SWP Calculator</button>
+      <button onclick="showCalculator('lumpsum')">Lumpsum Calculator</button>
+    </div>
+
+    <div id="sip" class="calculator">
+      <h2>SIP Calculator</h2>
+      <label>Monthly Investment (₹):<input type="number" id="sipAmount"></label>
+      <label>Annual Interest Rate (%):<input type="number" id="sipRate"></label>
+      <label>Years:<input type="number" id="sipYears"></label>
+      <button onclick="calculateSIP()">Calculate</button>
+      <button onclick="exportResults('sipResult')">Export Results</button>
+      <div id="sipResult"></div>
+      <div class="chart-wrapper">
+        <div class="chart-container">
+          <canvas id="sipPieChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div id="swp" class="calculator">
+      <h2>SWP Calculator</h2>
+      <label>Initial Investment (₹):<input type="number" id="swpAmount"></label>
+      <label>Annual Interest Rate (%):<input type="number" id="swpRate"></label>
+      <label>Years:<input type="number" id="swpYears"></label>
+      <label>Monthly Withdrawal (₹):<input type="number" id="swpWithdrawal"></label>
+      <button onclick="calculateSWP()">Calculate</button>
+      <button onclick="exportResults('swpResult')">Export Results</button>
+      <div id="swpResult"></div>
+      <div class="chart-wrapper">
+        <div class="chart-container">
+          <canvas id="swpPieChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div id="lumpsum" class="calculator">
+      <h2>Lumpsum Calculator</h2>
+      <label>Initial Investment (₹):<input type="number" id="lumpsumAmount"></label>
+      <label>Annual Interest Rate (%):<input type="number" id="lumpsumRate"></label>
+      <label>Years:<input type="number" id="lumpsumYears"></label>
+      <button onclick="calculateLumpsum()">Calculate</button>
+      <button onclick="exportResults('lumpsumResult')">Export Results</button>
+      <div id="lumpsumResult"></div>
+      <div class="chart-wrapper">
+        <div class="chart-container">
+          <canvas id="lumpsumPieChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      let sipChartInstance, swpChartInstance, lumpsumChartInstance;
+
+      function showCalculator(type) {
+        document.querySelectorAll('.calculator').forEach(cal => cal.classList.remove('visible'));
+        document.getElementById(type).classList.add('visible');
+      }
+
+      function validateInputs(inputs) {
+        return inputs.every(input => !isNaN(input) && input > 0);
+      }
+
+      function calculateSIP() {
+        const amount = parseFloat(document.getElementById('sipAmount').value);
+        const annualRate = parseFloat(document.getElementById('sipRate').value) / 100;
+        const years = parseInt(document.getElementById('sipYears').value);
+
+        if (!validateInputs([amount, annualRate, years])) {
+          alert("Please enter valid positive numbers for all fields.");
+          return;
+        }
+
+        let totalInvested = amount * 12 * years;
+        const futureValue = amount * ((Math.pow(1 + annualRate / 12, years * 12) - 1) / (annualRate / 12)) * (1 + annualRate / 12);
+
+        document.getElementById('sipResult').innerHTML = `Total Invested: ₹${totalInvested.toFixed(2)}<br>Future Value: ₹${futureValue.toFixed(2)}`;
+        drawPieChart('sipPieChart', totalInvested, futureValue, 'sip');
+      }
+
+      function calculateSWP() {
+        const amount = parseFloat(document.getElementById('swpAmount').value);
+        const annualRate = parseFloat(document.getElementById('swpRate').value) / 100;
+        const years = parseInt(document.getElementById('swpYears').value);
+        const withdrawal = parseFloat(document.getElementById('swpWithdrawal').value);
+
+        if (!validateInputs([amount, annualRate, years, withdrawal])) {
+          alert("Please enter valid positive numbers for all fields.");
+          return;
+        }
+
+        let balance = amount, totalWithdrawn = 0;
+        const monthlyRate = annualRate / 12;
+
+        for (let i = 0; i < years * 12; i++) {
+          balance = balance * (1 + monthlyRate) - withdrawal;
+          if (balance <= 0) {
+            balance = 0;
+            break;
+          }
+          totalWithdrawn += withdrawal;
+        }
+
+        document.getElementById('swpResult').innerHTML = `Total Withdrawn: ₹${totalWithdrawn.toFixed(2)}, Remaining Balance: ₹${balance.toFixed(2)}`;
+        drawPieChart('swpPieChart', totalWithdrawn, amount, 'swp');
+      }
+
+      function calculateLumpsum() {
+        const amount = parseFloat(document.getElementById('lumpsumAmount').value);
+        const annualRate = parseFloat(document.getElementById('lumpsumRate').value) / 100;
+        const years = parseInt(document.getElementById('lumpsumYears').value);
+
+        if (!validateInputs([amount, annualRate, years])) {
+          alert("Please enter valid positive numbers for all fields.");
+          return;
+        }
+
+        const futureValue = amount * Math.pow((1 + annualRate), years);
+
+        document.getElementById('lumpsumResult').innerHTML = `Initial Investment: ₹${amount.toFixed(2)}<br>Future Value: ₹${futureValue.toFixed(2)}`;
+        drawPieChart('lumpsumPieChart', amount, futureValue, 'lumpsum');
+      }
+
+      function drawPieChart(canvasId, invested, total, type) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+
+        if (type === 'sip' && sipChartInstance) sipChartInstance.destroy();
+        if (type === 'swp' && swpChartInstance) swpChartInstance.destroy();
+        if (type === 'lumpsum' && lumpsumChartInstance) lumpsumChartInstance.destroy();
+
+        const newChart = new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: ['Invested/Withdrawn', 'Returns/Balance'],
+            datasets: [{
+              data: [invested, total - invested],
+              backgroundColor: ['#ff9a8b', '#fad0c4']
+            }]
+          }
+        });
+
+        if (type === 'sip') sipChartInstance = newChart;
+        if (type === 'swp') swpChartInstance = newChart;
+        if (type === 'lumpsum') lumpsumChartInstance = newChart;
+      }
+
+      function exportResults(resultId) {
+        const resultText = document.getElementById(resultId).innerText;
+        const blob = new Blob([resultText], { type: 'text/plain' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${resultId}_results.txt`;
+        link.click();
+      }
+
+      window.showCalculator = showCalculator;
+      window.calculateSIP = calculateSIP;
+      window.calculateSWP = calculateSWP;
+      window.calculateLumpsum = calculateLumpsum;
+      window.exportResults = exportResults;
+    });
+  </script>
+</body>
+</html>
